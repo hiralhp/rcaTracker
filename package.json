@@ -1,0 +1,12 @@
+{
+  "name": "rca-tracker",
+  "version": "1.0.0",
+  "description": "Salesforce RCA Status Tracker",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && node seed.js",
+    "start:backend": "cd backend && node server.js"
+  }
+}

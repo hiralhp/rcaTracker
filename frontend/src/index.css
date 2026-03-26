@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Salesforce Sans', system-ui, -apple-system, sans-serif;
+    background-color: #F3F3F3;
+    color: #181818;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#0176D3] hover:bg-[#0165BA] text-white px-4 py-2 rounded-[4px] text-sm font-medium transition-colors;
+  }
+  .btn-secondary {
+    @apply border border-[#0176D3] text-[#0176D3] hover:bg-[#E8F4FE] px-4 py-2 rounded-[4px] text-sm font-medium transition-colors;
+  }
+  .btn-outline {
+    @apply border border-[#DDDBDA] text-[#3E3E3C] hover:bg-white px-4 py-2 rounded-[4px] text-sm font-medium transition-colors;
+  }
+  .card {
+    @apply bg-white rounded-[4px] shadow-card border border-[#DDDBDA];
+  }
+  .pill-green {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E3F1E3] text-[#2E7D32];
+  }
+  .pill-yellow {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#FEF3C7] text-[#B45309];
+  }
+  .pill-red {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#FDECEA] text-[#C23934];
+  }
+  .pill-blue {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E8F4FE] text-[#0176D3];
+  }
+  .pill-gray {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#F3F3F3] text-[#3E3E3C];
+  }
+}
+
+/* Kanban horizontal scroll */
+.kanban-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.kanban-scroll::-webkit-scrollbar { height: 6px; }
+.kanban-scroll::-webkit-scrollbar-track { background: #F3F3F3; }
+.kanban-scroll::-webkit-scrollbar-thumb { background: #DDDBDA; border-radius: 3px; }
