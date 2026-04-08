@@ -9,26 +9,29 @@ const MILESTONE_ICONS = {
   communication:   '✅',
 };
 
-function fmt(d) {
+// Date only — no time, no internal precision
+function fmtDate(d) {
   if (!d) return null;
   return new Intl.DateTimeFormat('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
   }).format(new Date(d));
 }
 
-function estWindow(low, high) {
-  if (low === 0 && high === 0) return null;
-  if (low < 1 && high < 1) return 'Less than 1 hour';
-  if (low === high) return `~${high} hours`;
-  return `${low}–${high} hours`;
+// Convert a remaining-hours window into a plain-language day estimate
+function hoursToFriendlyWindow(low, high) {
+  if (!high || high === 0) return null;
+  if (high <= 6)  return 'within a few hours';
+  if (high <= 20) return 'within 1 day';
+  const lowDays  = Math.max(1, Math.round(low  / 24));
+  const highDays = Math.max(lowDays + 1, Math.round(high / 24));
+  return `${lowDays}–${highDays} days`;
 }
 
 export default function Portal() {
   const { incident_id } = useParams();
-  const [data, setData] = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError]     = useState('');
 
   useEffect(() => {
     api.portal(incident_id)
@@ -57,8 +60,9 @@ export default function Portal() {
     );
   }
 
-  const isComplete = data.current_status === 'complete';
-  const window     = data.estimated_hours_remaining;
+  const isComplete    = data.current_status === 'complete';
+  const window        = data.estimated_hours_remaining;
+  const friendlyEta   = !isComplete ? hoursToFriendlyWindow(window?.low, window?.high) : null;
 
   return (
     <div className="min-h-screen bg-[#F3F3F3]">
@@ -101,7 +105,7 @@ export default function Portal() {
                 )}
               </div>
               <p className="text-xs text-[#706E6B]">
-                Incident reported on <strong className="text-[#3E3E3C]">{fmt(data.incident_date)}</strong>
+                Incident reported on <strong className="text-[#3E3E3C]">{fmtDate(data.incident_date)}</strong>
               </p>
               <p className="text-xs text-[#706E6B] mt-0.5">
                 Prepared for <strong className="text-[#3E3E3C]">{data.customer_name}</strong>
@@ -114,19 +118,18 @@ export default function Portal() {
           </div>
         </div>
 
-        {/* Estimated completion (if in progress) */}
-        {!isComplete && window && (window.low > 0 || window.high > 0) && (
+        {/* Estimated completion banner */}
+        {!isComplete && friendlyEta && (
           <div className="bg-[#E8F4FE] border border-[#b3d7f5] rounded-[4px] px-5 py-4 mb-6 flex items-start gap-3">
             <svg viewBox="0 0 24 24" fill="none" stroke="#0176D3" strokeWidth="2" className="w-5 h-5 flex-shrink-0 mt-0.5">
               <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
             <div>
-              <div className="text-sm font-semibold text-[#032D60]">Estimated Time to Completion</div>
-              <div className="text-sm text-[#0176D3] mt-0.5">
-                {estWindow(window.low, window.high)} remaining
+              <div className="text-sm font-semibold text-[#032D60]">
+                Estimated completion: {friendlyEta}
               </div>
               <div className="text-xs text-[#706E6B] mt-1">
-                Based on historical averages for similar incidents. Actual time may vary.
+                Based on similar incidents. We'll update this page as we make progress.
               </div>
             </div>
           </div>
@@ -138,14 +141,14 @@ export default function Portal() {
 
           <div className="space-y-0">
             {data.milestones.map((m, idx) => {
-              const isCompleted   = m.status === 'complete';
-              const isInProgress  = m.status === 'in_progress';
-              const isPending     = m.status === 'pending';
-              const isLast        = idx === data.milestones.length - 1;
+              const isCompleted  = m.status === 'complete';
+              const isInProgress = m.status === 'in_progress';
+              const isPending    = m.status === 'pending';
+              const isLast       = idx === data.milestones.length - 1;
 
               return (
                 <div key={m.key} className="flex gap-5 relative">
-                  {/* Connector */}
+                  {/* Connector line */}
                   {!isLast && (
                     <div
                       className="absolute left-5 top-12 w-0.5 bottom-0"
@@ -153,7 +156,7 @@ export default function Portal() {
                     />
                   )}
 
-                  {/* Circle */}
+                  {/* Step circle */}
                   <div
                     className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center z-10 text-base shadow-sm"
                     style={{
@@ -170,7 +173,7 @@ export default function Portal() {
                     )}
                   </div>
 
-                  {/* Content */}
+                  {/* Step content */}
                   <div className={`pb-8 flex-1 ${isPending ? 'opacity-40' : ''}`}>
                     <div className="flex items-center gap-2 flex-wrap pt-1.5">
                       <span className={`text-base font-semibold ${isCompleted ? 'text-[#181818]' : isInProgress ? 'text-[#0176D3]' : 'text-[#AEAEAE]'}`}>
@@ -186,15 +189,14 @@ export default function Portal() {
 
                     <div className="mt-1 text-sm text-[#706E6B]">
                       {isCompleted && m.completed_at && (
-                        <span>Completed {fmt(m.completed_at)}</span>
+                        <span>Completed {fmtDate(m.completed_at)}</span>
                       )}
-                      {isInProgress && m.estimated_hours_remaining != null && m.estimated_hours_remaining > 0 && (
-                        <span>Est. {m.estimated_hours_remaining}h remaining</span>
+                      {isCompleted && !m.completed_at && (
+                        <span>Complete</span>
                       )}
-                      {isInProgress && (!m.estimated_hours_remaining || m.estimated_hours_remaining === 0) && (
-                        <span>Nearly complete</span>
+                      {(isInProgress || isPending) && m.typical_duration && (
+                        <span>{m.typical_duration}</span>
                       )}
-                      {isPending && <span>Pending</span>}
                     </div>
                   </div>
                 </div>
@@ -204,14 +206,16 @@ export default function Portal() {
         </div>
 
         {/* Published confirmation */}
-        {isComplete && data.published_at && (
+        {isComplete && (
           <div className="bg-[#E3F1E3] border border-[#b8dbb8] rounded-[4px] px-5 py-4 flex items-start gap-3">
             <svg viewBox="0 0 24 24" fill="none" stroke="#2E7D32" strokeWidth="2" className="w-5 h-5 flex-shrink-0 mt-0.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <div>
               <div className="text-sm font-semibold text-[#2E7D32]">Root Cause Analysis Published</div>
-              <div className="text-xs text-[#2E7D32] mt-0.5">{fmt(data.published_at)}</div>
+              {data.published_at && (
+                <div className="text-xs text-[#2E7D32] mt-0.5">{fmtDate(data.published_at)}</div>
+              )}
               <div className="text-xs text-[#3E3E3C] mt-1">
                 The full RCA communication has been sent. Thank you for your patience.
               </div>

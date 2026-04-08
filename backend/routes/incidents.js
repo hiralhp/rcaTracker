@@ -44,8 +44,8 @@ router.post('/', (req, res) => {
   if (!title || !severity || !customer_name || !incident_date) {
     return res.status(400).json({ error: 'title, severity, customer_name, incident_date required' });
   }
-  if (!['Sev1', 'Sev2'].includes(severity)) {
-    return res.status(400).json({ error: 'severity must be Sev1 or Sev2' });
+  if (!['Sev1', 'Sev0'].includes(severity)) {
+    return res.status(400).json({ error: 'severity must be Sev1 or Sev0' });
   }
 
   const now = new Date().toISOString();

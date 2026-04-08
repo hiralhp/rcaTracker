@@ -4,7 +4,14 @@
       "Bash(tail:*)",
       "Bash(node:*)",
       "Bash(gh auth:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(git config:*)",
+      "Bash(netstat -ano | grep \":3001\" 2>/dev/null || ss -tlnp | grep 3001 2>/dev/null)",
+      "Bash(tasklist:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
     ]
   }
 }

@@ -10,7 +10,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS incidents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
-    severity TEXT NOT NULL CHECK(severity IN ('Sev1', 'Sev2')),
+    severity TEXT NOT NULL CHECK(severity IN ('Sev1', 'Sev0')),
     customer_name TEXT NOT NULL,
     incident_date TEXT NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))

@@ -1,10 +1,46 @@
 const db = require('./db');
 
-// Clear existing data
+// Drop and recreate tables to apply schema changes (e.g. CHECK constraint update)
 db.exec(`
-  DELETE FROM stage_history;
-  DELETE FROM rca;
-  DELETE FROM incidents;
+  DROP TABLE IF EXISTS stage_history;
+  DROP TABLE IF EXISTS rca;
+  DROP TABLE IF EXISTS incidents;
+`);
+db.exec(`
+  CREATE TABLE incidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK(severity IN ('Sev1', 'Sev0')),
+    customer_name TEXT NOT NULL,
+    incident_date TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE TABLE rca (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_id INTEGER NOT NULL REFERENCES incidents(id),
+    status TEXT NOT NULL DEFAULT 'requested',
+    requested_at TEXT,
+    drafting_at TEXT,
+    ai_draft_ready_at TEXT,
+    vp_review_at TEXT,
+    tech_writer_review_at TEXT,
+    legal_review_at TEXT,
+    published_at TEXT,
+    assigned_vp TEXT,
+    assigned_csm TEXT,
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+  CREATE TABLE stage_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rca_id INTEGER NOT NULL REFERENCES rca(id),
+    stage TEXT NOT NULL,
+    entered_at TEXT NOT NULL,
+    exited_at TEXT,
+    duration_minutes INTEGER,
+    actor TEXT,
+    note TEXT
+  );
 `);
 try {
   db.exec(`DELETE FROM sqlite_sequence WHERE name IN ('incidents','rca','stage_history');`);
@@ -69,7 +105,7 @@ const VPS   = ['Sarah Chen', 'Michael Torres', 'David Kim', 'Rachel Patel'];
 const CSMS  = ['Jake Wilson', 'Maria Santos', 'Tom Bradley', 'Lisa Chen', 'Chris Park'];
 const ACTORS = [...VPS, ...CSMS];
 
-// Stage duration ranges [min, max] in hours (for Sev2; Sev1 uses 0.55x multiplier)
+// Stage duration ranges [min, max] in hours (for Sev0; Sev1 uses 0.55x multiplier)
 const STAGE_DURATION_HOURS = {
   requested:          [0.3,  1.5],
   drafting:           [2,    8  ],
@@ -77,6 +113,12 @@ const STAGE_DURATION_HOURS = {
   vp_review:          [8,   72  ],  // known bottleneck
   tech_writer_review: [2,   16  ],
   legal_review:       [1,    8  ],
+};
+
+// Nominal durations used to back-fill previous stages for in-progress RCAs
+const STAGE_NOMINAL_HOURS = {
+  requested: 0.5, drafting: 5, ai_draft_ready: 1.5,
+  vp_review: 24,  tech_writer_review: 10,
 };
 
 function getStageDurationHours(stage, severity, forceHigh = false) {
@@ -94,31 +136,35 @@ function addHours(date, hours) {
   return new Date(date.getTime() + hours * 3_600_000);
 }
 
-const now = new Date('2026-03-26T12:00:00Z');
+const now = new Date();
 const sixMonthsAgo = new Date(now.getTime() - 180 * 86_400_000);
 
 // 35 RCAs: [finalStageIndex, isHighVpReview, severity override]
 // finalStageIndex 6 = published (closed)
 const RCA_SPECS = [
   // 24 published (i=0..23)
-  [6, false, 'Sev1'], [6, true,  'Sev2'], [6, false, 'Sev2'], [6, true,  'Sev1'],
-  [6, false, 'Sev2'], [6, true,  'Sev2'], [6, false, 'Sev1'], [6, false, 'Sev2'],
-  [6, true,  'Sev2'], [6, false, 'Sev1'], [6, false, 'Sev2'], [6, true,  'Sev2'],
-  [6, false, 'Sev2'], [6, false, 'Sev1'], [6, true,  'Sev2'], [6, false, 'Sev2'],
-  [6, false, 'Sev1'], [6, true,  'Sev1'], [6, false, 'Sev2'], [6, false, 'Sev2'],
-  [6, true,  'Sev2'], [6, false, 'Sev1'], [6, false, 'Sev2'], [6, true,  'Sev2'],
-  // 11 in-progress
-  [0, false, 'Sev1'], // requested
-  [0, false, 'Sev2'], // requested
-  [1, false, 'Sev2'], // drafting
-  [1, false, 'Sev1'], // drafting
-  [2, false, 'Sev2'], // ai_draft_ready
-  [3, false, 'Sev2'], // vp_review
-  [3, true,  'Sev2'], // vp_review (high)
-  [3, false, 'Sev1'], // vp_review
-  [3, false, 'Sev2'], // vp_review
-  [4, false, 'Sev2'], // tech_writer_review
-  [5, false, 'Sev1'], // legal_review
+  [6, false, 'Sev1'], [6, true,  'Sev0'], [6, false, 'Sev0'], [6, true,  'Sev1'],
+  [6, false, 'Sev0'], [6, true,  'Sev0'], [6, false, 'Sev1'], [6, false, 'Sev0'],
+  [6, true,  'Sev0'], [6, false, 'Sev1'], [6, false, 'Sev0'], [6, true,  'Sev0'],
+  [6, false, 'Sev0'], [6, false, 'Sev1'], [6, true,  'Sev0'], [6, false, 'Sev0'],
+  [6, false, 'Sev1'], [6, true,  'Sev1'], [6, false, 'Sev0'], [6, false, 'Sev0'],
+  [6, true,  'Sev0'], [6, false, 'Sev1'], [6, false, 'Sev0'], [6, true,  'Sev0'],
+  // 11 in-progress — [maxStageIdx, highVp, severity, hoursInCurrentStage]
+  // SLA thresholds: requested 2h, drafting 8h, ai_draft_ready 3h, vp_review 48h, tech_writer_review 24h, legal_review 8h
+  // BREACHED (>= 100% of threshold)
+  [0, false, 'Sev1',  5  ], // requested:         5h / 2h  = 250% → red
+  [1, false, 'Sev0',  12 ], // drafting:          12h / 8h  = 150% → red
+  [3, true,  'Sev0',  72 ], // vp_review:         72h / 48h = 150% → red
+  [3, false, 'Sev0',  60 ], // vp_review:         60h / 48h = 125% → red
+  // AT RISK (75–99% of threshold)
+  [0, false, 'Sev0',  1.7], // requested:        1.7h / 2h  =  85% → yellow
+  [1, false, 'Sev1',  7  ], // drafting:           7h / 8h  =  87% → yellow
+  [3, false, 'Sev1',  40 ], // vp_review:         40h / 48h =  83% → yellow
+  [4, false, 'Sev0',  20 ], // tech_writer_review:20h / 24h =  83% → yellow
+  // ON TRACK (< 75% of threshold)
+  [2, false, 'Sev0',  1  ], // ai_draft_ready:     1h / 3h  =  33% → green
+  [3, false, 'Sev0',  10 ], // vp_review:         10h / 48h =  21% → green
+  [5, false, 'Sev1',  2  ], // legal_review:       2h / 8h  =  25% → green
 ];
 
 const insertIncident = db.prepare(`
@@ -157,8 +203,11 @@ const run = db.transaction(() => {
       );
       publishedCount++;
     } else {
-      // In-progress: 1–18 days ago
-      incidentDate = addHours(now, -rand.between(24, 432));
+      // In-progress: back-calculate from hoursInCurrentStage + nominal previous stage durations
+      const hoursInCurrentStage = RCA_SPECS[i][3];
+      const totalPreviousHours = STAGES.slice(0, maxStageIdx)
+        .reduce((sum, s) => sum + (STAGE_NOMINAL_HOURS[s] || 0), 0);
+      incidentDate = addHours(now, -(hoursInCurrentStage + totalPreviousHours));
     }
 
     const title    = TITLES[i % TITLES.length];
@@ -180,8 +229,13 @@ const run = db.transaction(() => {
 
     for (let si = 0; si < maxStageIdx; si++) {
       const stage = STAGES[si];
-      const forceHigh = highVp && stage === 'vp_review';
-      const dur = getStageDurationHours(stage, severity, forceHigh);
+      let dur;
+      if (isPublished) {
+        const forceHigh = highVp && stage === 'vp_review';
+        dur = getStageDurationHours(stage, severity, forceHigh);
+      } else {
+        dur = STAGE_NOMINAL_HOURS[stage] || 1;
+      }
       stageTimes[si + 1] = addHours(stageTimes[si], dur);
     }
 

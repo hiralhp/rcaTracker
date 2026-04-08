@@ -19,7 +19,7 @@ function formatDate(d) {
 // ─── Create Incident Modal ───────────────────────────────────────────────────
 function CreateModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
-    title: '', severity: 'Sev2', customer_name: '',
+    title: '', severity: 'Sev0', customer_name: '',
     incident_date: new Date().toISOString().slice(0, 16),
     assigned_vp: '', assigned_csm: '',
   });
@@ -75,7 +75,7 @@ function CreateModal({ onClose, onCreated }) {
                 onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
               >
                 <option value="Sev1">Sev1 — Critical</option>
-                <option value="Sev2">Sev2 — High</option>
+                <option value="Sev0">Sev0 — High</option>
               </select>
             </div>
             <div>
@@ -231,7 +231,7 @@ export default function Dashboard() {
         >
           <option value="all">All Severities</option>
           <option value="Sev1">Sev1</option>
-          <option value="Sev2">Sev2</option>
+          <option value="Sev0">Sev0</option>
         </select>
 
         <select

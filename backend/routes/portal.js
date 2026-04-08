@@ -3,12 +3,12 @@ const db = require('../db');
 const router = express.Router();
 
 // Map internal stages to customer-facing milestones
-// Each milestone: { key, label, stages[] }
+// Each milestone: { key, label, typical_duration, stages[] }
 const MILESTONES = [
-  { key: 'investigating',    label: 'Investigating',          stages: ['requested', 'drafting'] },
-  { key: 'root_cause',       label: 'Root Cause Identified',  stages: ['ai_draft_ready'] },
-  { key: 'draft_in_review',  label: 'Draft in Review',        stages: ['vp_review', 'tech_writer_review', 'legal_review'] },
-  { key: 'communication',    label: 'Communication Sent',     stages: ['published'] },
+  { key: 'investigating',   label: 'Investigating',         typical_duration: 'Usually takes a few hours to 1 day', stages: ['requested', 'drafting'] },
+  { key: 'root_cause',      label: 'Root Cause Identified', typical_duration: 'Usually takes a few hours',           stages: ['ai_draft_ready'] },
+  { key: 'draft_in_review', label: 'Draft in Review',       typical_duration: 'Usually takes 2–4 days',              stages: ['vp_review', 'tech_writer_review', 'legal_review'] },
+  { key: 'communication',   label: 'Communication Sent',    typical_duration: 'Usually takes less than 1 day',       stages: ['published'] },
 ];
 
 const STAGES_ORDER = ['requested', 'drafting', 'ai_draft_ready', 'vp_review', 'tech_writer_review', 'legal_review', 'published'];
@@ -83,6 +83,7 @@ router.get('/:incident_id', (req, res) => {
     return {
       key: m.key,
       label: m.label,
+      typical_duration: m.typical_duration,
       status: isComplete ? 'complete' : isCurrent ? 'in_progress' : 'pending',
       started_at:   startedAt,
       completed_at: completedAt,

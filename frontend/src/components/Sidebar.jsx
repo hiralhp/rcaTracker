@@ -4,6 +4,7 @@ const NAV = [
   {
     to: '/',
     label: 'Dashboard',
+    roles: ['csm', 'vp'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
         <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
@@ -13,7 +14,8 @@ const NAV = [
   },
   {
     to: '/analytics',
-    label: 'Analytics',
+    label: 'Operational Insights',
+    roles: ['vp'],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
@@ -22,7 +24,9 @@ const NAV = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ role, setRole }) {
+  const visibleNav = NAV.filter(item => item.roles.includes(role));
+
   return (
     <aside className="w-64 flex-shrink-0 bg-[#032D60] flex flex-col h-full">
       {/* Logo / App header */}
@@ -41,7 +45,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV.map(item => (
+        {visibleNav.map(item => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -60,11 +64,30 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-[#1a4a7a]">
-        <div className="text-[#8aadce] text-xs">
-          <div className="font-medium text-white text-sm mb-0.5">Internal Tool</div>
-          CSM / VP View
+      {/* Footer — role switcher */}
+      <div className="px-4 py-4 border-t border-[#1a4a7a]">
+        <div className="text-[#8aadce] text-xs mb-2 font-medium uppercase tracking-wide">View as</div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setRole('csm')}
+            className={`flex-1 py-1.5 rounded-[4px] text-xs font-semibold transition-colors ${
+              role === 'csm'
+                ? 'bg-[#0176D3] text-white'
+                : 'bg-[#1a4a7a] text-[#c8dff0] hover:bg-[#234f80]'
+            }`}
+          >
+            CSM
+          </button>
+          <button
+            onClick={() => setRole('vp')}
+            className={`flex-1 py-1.5 rounded-[4px] text-xs font-semibold transition-colors ${
+              role === 'vp'
+                ? 'bg-[#0176D3] text-white'
+                : 'bg-[#1a4a7a] text-[#c8dff0] hover:bg-[#234f80]'
+            }`}
+          >
+            VP
+          </button>
         </div>
       </div>
     </aside>
