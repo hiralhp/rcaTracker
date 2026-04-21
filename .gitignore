@@ -1,5 +1,2 @@
 node_modules/
-.env
-*.log
-*.db
-frontend/dist
+frontend/dist/
