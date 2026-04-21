@@ -67,28 +67,14 @@ export default function Sidebar({ role, setRole }) {
       {/* Footer — role switcher */}
       <div className="px-4 py-4 border-t border-[#1a4a7a]">
         <div className="text-[#8aadce] text-xs mb-2 font-medium uppercase tracking-wide">View as</div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setRole('csm')}
-            className={`flex-1 py-1.5 rounded-[4px] text-xs font-semibold transition-colors ${
-              role === 'csm'
-                ? 'bg-[#0176D3] text-white'
-                : 'bg-[#1a4a7a] text-[#c8dff0] hover:bg-[#234f80]'
-            }`}
-          >
-            CSM
-          </button>
-          <button
-            onClick={() => setRole('vp')}
-            className={`flex-1 py-1.5 rounded-[4px] text-xs font-semibold transition-colors ${
-              role === 'vp'
-                ? 'bg-[#0176D3] text-white'
-                : 'bg-[#1a4a7a] text-[#c8dff0] hover:bg-[#234f80]'
-            }`}
-          >
-            VP
-          </button>
-        </div>
+        <select
+          value={role}
+          onChange={e => setRole(e.target.value)}
+          className="w-full bg-[#1a4a7a] text-[#c8dff0] text-xs font-medium rounded-[4px] px-2.5 py-2 border border-[#2a5a8a] focus:outline-none focus:ring-1 focus:ring-[#0176D3] cursor-pointer"
+        >
+          <option value="vp">VP – Sarah Chen</option>
+          <option value="csm">CSM – Jake Wilson</option>
+        </select>
       </div>
     </aside>
   );

@@ -40,7 +40,8 @@ router.get('/:id', (req, res) => {
 
 // POST /api/incidents  — create incident + initial RCA
 router.post('/', (req, res) => {
-  const { title, severity, customer_name, incident_date, assigned_vp, assigned_csm } = req.body;
+  const { title, severity, customer_name, incident_date, assigned_vp, assigned_csm,
+          rca_type, impacted_accounts, impacted_csms } = req.body;
   if (!title || !severity || !customer_name || !incident_date) {
     return res.status(400).json({ error: 'title, severity, customer_name, incident_date required' });
   }
@@ -49,6 +50,11 @@ router.post('/', (req, res) => {
   }
 
   const now = new Date().toISOString();
+  const type = rca_type === 'multi' ? 'multi' : 'single';
+  const accountsJson = Array.isArray(impacted_accounts) && impacted_accounts.length
+    ? JSON.stringify(impacted_accounts) : null;
+  const csmsJson = Array.isArray(impacted_csms) && impacted_csms.length
+    ? JSON.stringify(impacted_csms) : null;
 
   const create = db.transaction(() => {
     const inc = db.prepare(`
@@ -57,9 +63,9 @@ router.post('/', (req, res) => {
     `).run(title, severity, customer_name, incident_date, now);
 
     const rca = db.prepare(`
-      INSERT INTO rca (incident_id, status, requested_at, assigned_vp, assigned_csm, created_at)
-      VALUES (?, 'requested', ?, ?, ?, ?)
-    `).run(inc.lastInsertRowid, now, assigned_vp || null, assigned_csm || null, now);
+      INSERT INTO rca (incident_id, status, requested_at, assigned_vp, assigned_csm, created_at, rca_type, impacted_accounts, impacted_csms)
+      VALUES (?, 'requested', ?, ?, ?, ?, ?, ?, ?)
+    `).run(inc.lastInsertRowid, now, assigned_vp || null, assigned_csm || null, now, type, accountsJson, csmsJson);
 
     db.prepare(`
       INSERT INTO stage_history (rca_id, stage, entered_at, actor)

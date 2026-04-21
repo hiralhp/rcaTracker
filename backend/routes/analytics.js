@@ -2,12 +2,17 @@ const express = require('express');
 const db = require('../db');
 const router = express.Router();
 
-const STAGES = ['requested', 'drafting', 'ai_draft_ready', 'vp_review', 'tech_writer_review', 'legal_review'];
+const STAGES = ['requested', 'ai_draft_ready', 'drafting', 'service_owner_review', 'vp_svp_review', 'tech_writer_review', 'pr_legal_review'];
 
-// SLA thresholds per stage (hours)
-const SLA_HOURS = {
-  requested: 2, drafting: 8, ai_draft_ready: 3,
-  vp_review: 48, tech_writer_review: 24, legal_review: 8,
+// SLO thresholds per stage (hours)
+const SLO_HOURS = {
+  requested:            2,
+  ai_draft_ready:       3,
+  drafting:             8,
+  service_owner_review: 24,
+  vp_svp_review:        48,
+  tech_writer_review:   24,
+  pr_legal_review:      8,
 };
 
 // GET /api/analytics/stage-averages?severity=all
@@ -21,11 +26,14 @@ router.get('/stage-averages', (req, res) => {
       FROM stage_history sh
       JOIN rca r ON r.id = sh.rca_id
       JOIN incidents i ON i.id = r.incident_id
-      WHERE sh.exited_at IS NOT NULL AND i.severity = ?
+      WHERE sh.exited_at IS NOT NULL AND r.status = 'published' AND i.severity = ?
     `).all(severity);
   } else {
     rows = db.prepare(`
-      SELECT stage, duration_minutes FROM stage_history WHERE exited_at IS NOT NULL
+      SELECT sh.stage, sh.duration_minutes
+      FROM stage_history sh
+      JOIN rca r ON r.id = sh.rca_id
+      WHERE sh.exited_at IS NOT NULL AND r.status = 'published'
     `).all();
   }
 
@@ -44,8 +52,8 @@ router.get('/stage-averages', (req, res) => {
       label: stageLabel(stage),
       avg_hours: +(avg / 60).toFixed(2),
       count: vals.length,
-      sla_threshold_hours: SLA_HOURS[stage] || null,
-      exceeds_sla: SLA_HOURS[stage] ? avg / 60 > SLA_HOURS[stage] : false,
+      slo_threshold_hours: SLO_HOURS[stage] || null,
+      exceeds_slo: SLO_HOURS[stage] ? avg / 60 > SLO_HOURS[stage] : false,
     };
   });
 
@@ -104,11 +112,14 @@ router.get('/variance', (req, res) => {
       FROM stage_history sh
       JOIN rca r ON r.id = sh.rca_id
       JOIN incidents i ON i.id = r.incident_id
-      WHERE sh.exited_at IS NOT NULL AND i.severity = ?
+      WHERE sh.exited_at IS NOT NULL AND r.status = 'published' AND i.severity = ?
     `).all(severity);
   } else {
     rows = db.prepare(`
-      SELECT stage, duration_minutes FROM stage_history WHERE exited_at IS NOT NULL
+      SELECT sh.stage, sh.duration_minutes
+      FROM stage_history sh
+      JOIN rca r ON r.id = sh.rca_id
+      WHERE sh.exited_at IS NOT NULL AND r.status = 'published'
     `).all();
   }
 
@@ -122,34 +133,36 @@ router.get('/variance', (req, res) => {
   const result = STAGES.map(stage => {
     const vals = grouped[stage] || [];
     if (!vals.length) {
-      return { stage, label: stageLabel(stage), avg_hours: 0, std_dev_hours: 0, cv_percent: 0, count: 0, sla_threshold_hours: SLA_HOURS[stage] || null };
+      return { stage, label: stageLabel(stage), avg_hours: 0, std_dev_hours: 0, cv_percent: 0, count: 0, slo_threshold_hours: SLO_HOURS[stage] || null, exceeds_slo: false };
     }
     const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
     const variance = vals.reduce((a, b) => a + (b - avg) ** 2, 0) / vals.length;
     const stdDev = Math.sqrt(variance);
     const cv = avg > 0 ? (stdDev / avg) * 100 : 0;
+    const avgHours = avg / 60;
     return {
       stage,
       label: stageLabel(stage),
-      avg_hours: +(avg / 60).toFixed(2),
+      avg_hours: +avgHours.toFixed(2),
       std_dev_hours: +(stdDev / 60).toFixed(2),
       cv_percent: +cv.toFixed(1),
       count: vals.length,
-      sla_threshold_hours: SLA_HOURS[stage] || null,
+      slo_threshold_hours: SLO_HOURS[stage] || null,
+      exceeds_slo: SLO_HOURS[stage] ? avgHours > SLO_HOURS[stage] : false,
     };
   });
 
   res.json(result);
 });
 
-// GET /api/analytics/sla-summary
-router.get('/sla-summary', (req, res) => {
+// GET /api/analytics/slo-summary
+router.get('/slo-summary', (req, res) => {
   const total = db.prepare(`SELECT COUNT(*) AS n FROM rca`).get().n;
   const published = db.prepare(`SELECT COUNT(*) AS n FROM rca WHERE status='published'`).get().n;
   const breached = db.prepare(`
     SELECT COUNT(*) AS n FROM stage_history sh
     JOIN rca r ON r.id = sh.rca_id
-    WHERE sh.exited_at IS NOT NULL AND sh.stage = 'vp_review'
+    WHERE sh.exited_at IS NOT NULL AND sh.stage = 'vp_svp_review'
       AND sh.duration_minutes > ${48 * 60}
   `).get().n;
   res.json({ total, published, in_progress: total - published, vp_review_breaches: breached });
@@ -157,9 +170,13 @@ router.get('/sla-summary', (req, res) => {
 
 function stageLabel(s) {
   return {
-    requested: 'Requested', drafting: 'Drafting',
-    ai_draft_ready: 'AI Draft Ready', vp_review: 'VP Review',
-    tech_writer_review: 'Tech Writer', legal_review: 'Legal Review',
+    requested:            'Requested',
+    ai_draft_ready:       'AI Draft Ready',
+    drafting:             'Drafting',
+    service_owner_review: 'Svc Owner',
+    vp_svp_review:        'VP/SVP',
+    tech_writer_review:   'Tech Writer',
+    pr_legal_review:      'PR & Legal',
   }[s] || s;
 }
 

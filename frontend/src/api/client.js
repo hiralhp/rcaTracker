@@ -22,15 +22,18 @@ export const api = {
   // RCAs
   getRCAs:       (params={}) => request('/rcas?' + new URLSearchParams(params).toString()),
   getRCA:        (id)        => request(`/rcas/${id}`),
-  advanceRCA:    (id, body)  => request(`/rcas/${id}/advance`, { method: 'PUT', body }),
+  advanceRCA:    (id, body)  => request(`/rcas/${id}/advance`, { method: 'PUT',   body }),
+  updateRCA:     (id, body)  => request(`/rcas/${id}`,         { method: 'PATCH', body }),
   getCsms:       ()          => request('/rcas/meta/csms'),
 
   // Analytics
   stageAverages: (p={}) => request('/analytics/stage-averages?' + new URLSearchParams(p).toString()),
   cycleTime:     (p={}) => request('/analytics/cycle-time?' + new URLSearchParams(p).toString()),
   variance:      (p={}) => request('/analytics/variance?' + new URLSearchParams(p).toString()),
-  slaSummary:    ()     => request('/analytics/sla-summary'),
+  sloSummary:    ()     => request('/analytics/slo-summary'),
 
   // Portal
-  portal:        (id)   => request(`/portal/${id}`),
+  portalIncidents: (customer) => request('/portal' + (customer ? '?' + new URLSearchParams({ customer_name: customer }) : '')),
+  portal:          (id)      => request(`/portal/${id}`),
+  subscribe:       (id, body) => request(`/portal/${id}/subscribe`, { method: 'POST', body }),
 };

@@ -7,6 +7,8 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
     "seed": "cd backend && node seed.js",
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm install && NODE_ENV=production node server.js",
     "start:backend": "cd backend && node server.js"
   }
 }

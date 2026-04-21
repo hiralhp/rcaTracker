@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, ReferenceLine,
 } from 'recharts';
 import { api } from '../api/client';
@@ -11,9 +11,9 @@ function CustomBarTooltip({ active, payload }) {
   return (
     <div className="bg-white border border-[#DDDBDA] shadow-card rounded-[4px] px-3 py-2 text-xs">
       <div className="font-semibold text-[#181818] mb-1">{d.label}</div>
-      <div>Avg time: <strong>{d.avg_hours}h</strong></div>
-      {d.sla_threshold_hours && <div>SLA limit: {d.sla_threshold_hours}h</div>}
-      {d.exceeds_sla && <div className="text-[#C23934] font-medium mt-1">Exceeds SLA</div>}
+      <div>Avg time: <strong className={d.exceeds_slo ? 'text-[#C23934]' : ''}>{d.avg_hours}h</strong></div>
+      {d.slo_threshold_hours != null && <div className="text-[#706E6B]">SLO target: {d.slo_threshold_hours}h</div>}
+      {d.exceeds_slo && <div className="text-[#C23934] font-medium mt-1">Exceeds SLO</div>}
     </div>
   );
 }
@@ -58,7 +58,7 @@ export default function OperationalInsights() {
           api.stageAverages({ severity }),
           api.cycleTime({ period, severity }),
           api.variance({ severity }),
-          api.slaSummary(),
+          api.sloSummary(),
         ]);
         setStageData(sd);
         setCycleData(cd);
@@ -75,10 +75,7 @@ export default function OperationalInsights() {
 
   if (error) return <div className="p-8 pill-red text-sm">{error}</div>;
 
-  const breachingStages = stageData.filter(d => d.exceeds_sla);
-  const slowestStage = stageData.length
-    ? stageData.reduce((max, d) => d.avg_hours > (max?.avg_hours || 0) ? d : max, null)
-    : null;
+  const breachingStages = stageData.filter(d => d.exceeds_slo);
 
   return (
     <div className="p-6 max-w-5xl">
@@ -115,21 +112,7 @@ export default function OperationalInsights() {
         <div className="flex items-center justify-center h-64 text-[#706E6B] text-sm">Loading…</div>
       ) : (
         <div className="space-y-4">
-          {/* Insight callout */}
-          {slowestStage && (
-            <div className="border-l-4 border-[#F9A825] bg-[#FFFBF0] px-4 py-3 rounded-r-[4px]">
-              <div className="text-xs font-semibold text-[#B45309] uppercase tracking-wide mb-0.5">Current bottleneck</div>
-              <div className="text-sm text-[#181818]">
-                <strong>{slowestStage.label}</strong> is the longest stage at an average of{' '}
-                <strong>{slowestStage.avg_hours}h</strong> — the main source of delay in RCA completion.
-                {slowestStage.exceeds_sla && (
-                  <span className="text-[#C23934]"> This exceeds the configured SLA.</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* SLA breach alert */}
+          {/* SLO breach alert */}
           {breachingStages.length > 0 && (
             <div className="rounded-[4px] border border-[#FDECEA] bg-[#FDECEA] px-4 py-3 flex items-start gap-2">
               <svg viewBox="0 0 24 24" fill="none" stroke="#C23934" strokeWidth="2" className="w-4 h-4 flex-shrink-0 mt-0.5">
@@ -137,48 +120,66 @@ export default function OperationalInsights() {
                 <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
               <div className="text-sm text-[#C23934]">
-                <strong>SLA exceeded</strong> in {breachingStages.map(s => s.label).join(', ')}.
+                <strong>SLO exceeded</strong> in {breachingStages.map(s => s.label).join(', ')}.
               </div>
             </div>
           )}
 
           {/* Summary stats */}
           {summary && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <StatCard label="Total RCAs" value={summary.total} />
               <StatCard label="Published" value={summary.published} accent="text-[#2E7D32]" />
               <StatCard label="In Progress" value={summary.in_progress} accent="text-[#0176D3]" />
-              <StatCard
-                label="VP Review Breaches"
-                value={summary.vp_review_breaches}
-                sub="> 48h in VP Review"
-                accent={summary.vp_review_breaches > 0 ? 'text-[#C23934]' : 'text-[#181818]'}
-              />
             </div>
           )}
 
           {/* Bar chart: stage durations */}
           <div className="card p-5">
             <h2 className="text-sm font-semibold text-[#181818] mb-0.5">Where delays are occurring</h2>
-            <p className="text-xs text-[#706E6B] mb-4">Avg hours per stage across closed RCAs. Red = exceeds SLA.</p>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={stageData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+            <p className="text-xs text-[#706E6B] mb-4">Avg hours per stage across closed RCAs. Red = exceeds SLO.</p>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={stageData} margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barCategoryGap="20%">
                 <CartesianGrid strokeDasharray="3 3" stroke="#DDDBDA" />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#706E6B' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#706E6B' }} unit="h" />
                 <Tooltip content={<CustomBarTooltip />} />
                 <Bar
                   dataKey="avg_hours"
+                  name="avg_hours"
+                  legendType="none"
                   radius={[2, 2, 0, 0]}
                   isAnimationActive={true}
                   shape={(props) => {
                     const { x, y, width, height, payload } = props;
-                    const color = payload.exceeds_sla ? '#C23934' : '#0176D3';
+                    const color = payload.exceeds_slo ? '#C23934' : '#0176D3';
                     return <rect x={x} y={y} width={width} height={height} fill={color} rx={2} />;
                   }}
                 />
+                <Bar
+                  dataKey="slo_threshold_hours"
+                  name="slo_threshold_hours"
+                  legendType="none"
+                  radius={[2, 2, 0, 0]}
+                  fill="#DDDBDA"
+                  isAnimationActive={false}
+                />
               </BarChart>
             </ResponsiveContainer>
+            <div className="flex gap-4 justify-center mt-2">
+              <div className="flex items-center gap-1.5 text-xs text-[#706E6B]">
+                <div className="w-2.5 h-2.5 rounded-sm bg-[#0176D3]" />
+                <span>Avg time (on track)</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-[#706E6B]">
+                <div className="w-2.5 h-2.5 rounded-sm bg-[#C23934]" />
+                <span>Avg time (exceeds SLO)</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-[#706E6B]">
+                <div className="w-2.5 h-2.5 rounded-sm bg-[#DDDBDA]" />
+                <span>SLO target</span>
+              </div>
+            </div>
           </div>
 
           {/* Line chart: cycle time */}
@@ -197,7 +198,7 @@ export default function OperationalInsights() {
                   <YAxis tick={{ fontSize: 11, fill: '#706E6B' }} unit="h" />
                   <Tooltip content={<CustomLineTooltip />} />
                   <ReferenceLine y={120} stroke="#C23934" strokeDasharray="4 4"
-                    label={{ value: '5d SLA', position: 'insideTopRight', fontSize: 10, fill: '#C23934' }} />
+                    label={{ value: '5d SLO', position: 'insideTopRight', fontSize: 10, fill: '#C23934' }} />
                   <Line
                     type="monotone"
                     dataKey="avg_hours"
@@ -216,11 +217,11 @@ export default function OperationalInsights() {
           {varData.length > 0 && (
             <div className="card p-5">
               <h2 className="text-sm font-semibold text-[#181818] mb-0.5">Stage status</h2>
-              <p className="text-xs text-[#706E6B] mb-4">Average completion time per stage vs. SLA target.</p>
+              <p className="text-xs text-[#706E6B] mb-4">Average completion time per stage vs. SLO target.</p>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#DDDBDA]">
-                    {['Stage', 'Avg time', 'SLA target', 'Status'].map(h => (
+                    {['Stage', 'Avg time', 'SLO target', 'Status'].map(h => (
                       <th key={h} className="text-left px-3 py-2 text-xs font-semibold text-[#706E6B] whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -229,15 +230,15 @@ export default function OperationalInsights() {
                   {varData.map((row) => (
                     <tr key={row.stage} className="border-b border-[#F3F3F3] last:border-0">
                       <td className="px-3 py-2.5 font-medium text-[#181818]">{row.label}</td>
-                      <td className={`px-3 py-2.5 ${row.exceeds_sla ? 'text-[#C23934] font-semibold' : 'text-[#3E3E3C]'}`}>
+                      <td className={`px-3 py-2.5 ${row.exceeds_slo ? 'text-[#C23934] font-semibold' : 'text-[#3E3E3C]'}`}>
                         {row.avg_hours}h
                       </td>
                       <td className="px-3 py-2.5 text-[#706E6B]">
-                        {row.sla_threshold_hours ? `${row.sla_threshold_hours}h` : '—'}
+                        {row.slo_threshold_hours ? `${row.slo_threshold_hours}h` : '—'}
                       </td>
                       <td className="px-3 py-2.5">
-                        {row.exceeds_sla
-                          ? <span className="pill-red">Over SLA</span>
+                        {row.exceeds_slo
+                          ? <span className="pill-red">Over SLO</span>
                           : <span className="pill-green">On track</span>
                         }
                       </td>
