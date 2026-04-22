@@ -331,7 +331,7 @@ export default function Dashboard({ role = 'vp', setRole }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-[#181818]">RCA Pipeline</h1>
+          <h1 className="text-xl font-bold text-[#181818]">{role === 'csm' ? 'OrgCS' : 'Gus'}</h1>
           {role === 'csm' ? (
             <p className="text-sm text-[#706E6B] mt-0.5">
               {showAll ? (

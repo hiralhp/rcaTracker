@@ -37,7 +37,7 @@ export default function Sidebar({ role, setRole }) {
             <path d="M26.5 4C22.4 4 18.7 5.9 16.3 9A13.5 13.5 0 0 0 8 6.5C1.3 6.5-3.5 12.5 4.3 19.5L4 20c0 6.6 5.4 12 12 12 1.7 0 3.3-.4 4.8-1A12 12 0 0 0 32 35a12 12 0 0 0 11-7.1A9.5 9.5 0 0 0 60 19.5c0-5.2-4.3-9.5-9.5-9.5-.9 0-1.8.1-2.6.3C45.8 6.1 41.4 4 36.5 4c-2.4 0-4.6.6-6.5 1.6A11.9 11.9 0 0 0 26.5 4Z" />
           </svg>
           <div>
-            <div className="text-white font-semibold text-sm leading-tight">RCA Tracker</div>
+            <div className="text-white font-semibold text-sm leading-tight">{role === 'csm' ? 'OrgCS' : 'Gus'}</div>
             <div className="text-[#8aadce] text-xs">Incident Platform</div>
           </div>
         </div>
