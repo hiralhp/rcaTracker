@@ -267,9 +267,15 @@ for (let i = 0; i < TOTAL - PUBLISHED; i++) {
   const threshold  = SLO_HOURS[stageName];
   const roll       = rand.next();
   let hours;
-  if      (roll < 0.25) hours = threshold * rand.between(1.05, 2.5);   // breached
-  else if (roll < 0.50) hours = threshold * rand.between(0.75, 0.99);  // at-risk
-  else                  hours = threshold * rand.between(0.05, 0.74);  // on-track
+  if (stageName === 'drafting') {
+    hours = threshold * rand.between(1.1, 3.0);                          // always breached
+  } else if (roll < 0.25) {
+    hours = threshold * rand.between(1.05, 2.5);                         // breached
+  } else if (roll < 0.50) {
+    hours = threshold * rand.between(0.75, 0.99);                        // at-risk
+  } else {
+    hours = threshold * rand.between(0.05, 0.74);                        // on-track
+  }
 
   const isMulti = rand.next() < MULTI_RATIO;
   specs.push({
@@ -435,20 +441,20 @@ const jakeNow = new Date();
 const jakeIncident1 = insertIncident.run(
   'Redis cache eviction storm causing database overload',
   'Sev1', 'Horizon Systems',
-  addHours(jakeNow, -5).toISOString(),
-  addHours(jakeNow, -5).toISOString()
+  addHours(jakeNow, -12).toISOString(),
+  addHours(jakeNow, -12).toISOString()
 );
 const jakeRca1 = insertRca.run(
   jakeIncident1.lastInsertRowid, 'drafting',
-  addHours(jakeNow, -5).toISOString(), addHours(jakeNow, -4).toISOString(), addHours(jakeNow, -3).toISOString(),
+  addHours(jakeNow, -12).toISOString(), addHours(jakeNow, -11).toISOString(), addHours(jakeNow, -10).toISOString(),
   null, null, null, null,
-  'Sarah Chen', 'Jake Wilson', null, addHours(jakeNow, -5).toISOString(),
+  'Sarah Chen', 'Jake Wilson', null, addHours(jakeNow, -12).toISOString(),
   'single', null, null,
   JSON.stringify(['Sales Cloud', 'Service Cloud', 'Flow Automation'])
 );
-insertHistory.run(jakeRca1.lastInsertRowid, 'requested',      addHours(jakeNow, -5).toISOString(), addHours(jakeNow, -4).toISOString(), 60,  'Jake Wilson', null);
-insertHistory.run(jakeRca1.lastInsertRowid, 'ai_draft_ready', addHours(jakeNow, -4).toISOString(), addHours(jakeNow, -3).toISOString(), 60,  'Jake Wilson', null);
-insertHistory.run(jakeRca1.lastInsertRowid, 'drafting',       addHours(jakeNow, -3).toISOString(), null,                                null, 'Jake Wilson', null);
+insertHistory.run(jakeRca1.lastInsertRowid, 'requested',      addHours(jakeNow, -12).toISOString(), addHours(jakeNow, -11).toISOString(), 60,  'Jake Wilson', null);
+insertHistory.run(jakeRca1.lastInsertRowid, 'ai_draft_ready', addHours(jakeNow, -11).toISOString(), addHours(jakeNow, -10).toISOString(), 60,  'Jake Wilson', null);
+insertHistory.run(jakeRca1.lastInsertRowid, 'drafting',       addHours(jakeNow, -10).toISOString(), null,                                null, 'Jake Wilson', null);
 
 const jakeIncident2 = insertIncident.run(
   'Network partition between availability zones',
