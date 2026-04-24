@@ -436,8 +436,10 @@ const run = db.transaction(() => {
 
 run();
 
-// ─── Guarantee Jake Wilson has 1 single + 1 multi active incident ─────────────
+// ─── Guarantee Jake Wilson has 3 active incidents ─────────────────────────────
 const jakeNow = new Date();
+
+// Incident 1: single, BREACHED in drafting (10h in, SLO 8h)
 const jakeIncident1 = insertIncident.run(
   'Redis cache eviction storm causing database overload',
   'Sev1', 'Horizon Systems',
@@ -452,10 +454,11 @@ const jakeRca1 = insertRca.run(
   'single', null, null,
   JSON.stringify(['Sales Cloud', 'Service Cloud', 'Flow Automation'])
 );
-insertHistory.run(jakeRca1.lastInsertRowid, 'requested',      addHours(jakeNow, -12).toISOString(), addHours(jakeNow, -11).toISOString(), 60,  'Jake Wilson', null);
-insertHistory.run(jakeRca1.lastInsertRowid, 'ai_draft_ready', addHours(jakeNow, -11).toISOString(), addHours(jakeNow, -10).toISOString(), 60,  'Jake Wilson', null);
-insertHistory.run(jakeRca1.lastInsertRowid, 'drafting',       addHours(jakeNow, -10).toISOString(), null,                                null, 'Jake Wilson', null);
+insertHistory.run(jakeRca1.lastInsertRowid, 'requested',      addHours(jakeNow, -12).toISOString(), addHours(jakeNow, -11).toISOString(), 60, 'Jake Wilson', null);
+insertHistory.run(jakeRca1.lastInsertRowid, 'ai_draft_ready', addHours(jakeNow, -11).toISOString(), addHours(jakeNow, -10).toISOString(), 60, 'Emily Wong', null);
+insertHistory.run(jakeRca1.lastInsertRowid, 'drafting',       addHours(jakeNow, -10).toISOString(), null,                                null, 'Michael Torres', null);
 
+// Incident 2: multi, ON TRACK in vp_svp_review (6h in, SLO 48h)
 const jakeIncident2 = insertIncident.run(
   'Network partition between availability zones',
   'Sev1', 'Apex Analytics',
@@ -473,13 +476,33 @@ const jakeRca2 = insertRca.run(
   JSON.stringify(['Salesforce APIs', 'Platform Events', 'MuleSoft Anypoint Platform', 'Data Cloud'])
 );
 insertHistory.run(jakeRca2.lastInsertRowid, 'requested',            addHours(jakeNow, -12).toISOString(), addHours(jakeNow, -10).toISOString(), 120, 'Jake Wilson', null);
-insertHistory.run(jakeRca2.lastInsertRowid, 'ai_draft_ready',       addHours(jakeNow, -10).toISOString(), addHours(jakeNow,  -8).toISOString(), 120, 'Jake Wilson', null);
-insertHistory.run(jakeRca2.lastInsertRowid, 'drafting',             addHours(jakeNow,  -8).toISOString(), addHours(jakeNow,  -7).toISOString(),  60, 'Jake Wilson', null);
+insertHistory.run(jakeRca2.lastInsertRowid, 'ai_draft_ready',       addHours(jakeNow, -10).toISOString(), addHours(jakeNow,  -8).toISOString(), 120, 'Emily Wong', null);
+insertHistory.run(jakeRca2.lastInsertRowid, 'drafting',             addHours(jakeNow,  -8).toISOString(), addHours(jakeNow,  -7).toISOString(),  60, 'David Kim', null);
 insertHistory.run(jakeRca2.lastInsertRowid, 'service_owner_review', addHours(jakeNow,  -7).toISOString(), addHours(jakeNow,  -6).toISOString(),  60, 'Maria Santos', null);
 insertHistory.run(jakeRca2.lastInsertRowid, 'vp_svp_review',       addHours(jakeNow,  -6).toISOString(), null,                                  null, 'Sarah Chen', null);
 
+// Incident 3: single, AT RISK in service_owner_review (20h in, SLO 24h)
+const jakeIncident3 = insertIncident.run(
+  'Scheduled batch job processing delay exceeding 4 hours',
+  'Sev1', 'Cedar Systems',
+  addHours(jakeNow, -24).toISOString(),
+  addHours(jakeNow, -24).toISOString()
+);
+const jakeRca3 = insertRca.run(
+  jakeIncident3.lastInsertRowid, 'service_owner_review',
+  addHours(jakeNow, -24).toISOString(), addHours(jakeNow, -22.5).toISOString(), addHours(jakeNow, -21).toISOString(),
+  addHours(jakeNow, -20).toISOString(), null, null, null,
+  'Rachel Patel', 'Jake Wilson', null, addHours(jakeNow, -24).toISOString(),
+  'single', null, null,
+  JSON.stringify(['Apex', 'Flow Builder', 'Salesforce Platform'])
+);
+insertHistory.run(jakeRca3.lastInsertRowid, 'requested',            addHours(jakeNow, -24).toISOString(),   addHours(jakeNow, -22.5).toISOString(), 90,  'Jake Wilson', null);
+insertHistory.run(jakeRca3.lastInsertRowid, 'ai_draft_ready',       addHours(jakeNow, -22.5).toISOString(), addHours(jakeNow, -21).toISOString(),   90,  'Emily Wong', null);
+insertHistory.run(jakeRca3.lastInsertRowid, 'drafting',             addHours(jakeNow, -21).toISOString(),   addHours(jakeNow, -20).toISOString(),   60,  'David Kim', null);
+insertHistory.run(jakeRca3.lastInsertRowid, 'service_owner_review', addHours(jakeNow, -20).toISOString(),   null,                                   null, 'Rachel Patel', null);
+
 console.log(`✅  Seeded ${TOTAL} incidents (${PUBLISHED} published, ${TOTAL - PUBLISHED} in-progress, ~${Math.round(TOTAL * MULTI_RATIO)} multi-customer)`);
-console.log('✅  Jake Wilson: 1 single active (drafting) + 1 multi active (vp_svp_review)');
+console.log('✅  Jake Wilson: breached drafting (10h/8h SLO) + on track vp_svp_review (6h/48h SLO) + at risk service_owner_review (20h/24h SLO)');
 
 // ─── Horizon Systems: 2 additional published incidents (demo) ─────────────────
 const hBase1 = addHours(new Date(), -30 * 24);   // ~30 days ago
