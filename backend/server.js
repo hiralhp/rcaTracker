@@ -6,6 +6,18 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === 'production';
 
+// Auto-seed if the database is empty (handles ephemeral filesystems on free hosting)
+const db = require('./db');
+try {
+  const count = db.prepare('SELECT COUNT(*) as n FROM incidents').get().n;
+  if (count === 0) {
+    console.log('Database is empty — running seed...');
+    require('./seed');
+  }
+} catch (e) {
+  console.error('Auto-seed check failed:', e.message);
+}
+
 app.use(cors());
 app.use(express.json());
 
