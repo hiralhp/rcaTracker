@@ -101,7 +101,7 @@ const SLO_HOURS = {
 const STAGE_DURATION_HOURS = {
   requested:            [0.3,  1.5],
   ai_draft_ready:       [0.5,  3  ],
-  drafting:             [6,   20  ],
+  drafting:             [14,  32  ],
   service_owner_review: [2,   24  ],
   vp_svp_review:        [8,   72  ],
   tech_writer_review:   [20,  60  ],
